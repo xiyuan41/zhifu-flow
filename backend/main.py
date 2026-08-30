@@ -1,16 +1,20 @@
 from datetime import datetime
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from database import Base, SessionLocal, engine
+from models import Ticket
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="智服流 API",
     description="企业客服与工单智能体工作台的后端接口",
-    version="0.1.0",
+    version="0.2.0",
 )
-
-tickets = []
 
 
 class TicketCreate(BaseModel):
@@ -19,8 +23,29 @@ class TicketCreate(BaseModel):
     order_no: str | None = Field(default=None, description="订单号")
     priority: Literal["low", "medium", "high"] = "medium"
 
+
 class TicketStatusUpdate(BaseModel):
     status: Literal["pending", "processing", "resolved"]
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def ticket_to_dict(ticket: Ticket) -> dict:
+    return {
+        "id": ticket.id,
+        "customer_name": ticket.customer_name,
+        "question": ticket.question,
+        "order_no": ticket.order_no,
+        "priority": ticket.priority,
+        "status": ticket.status,
+        "created_at": ticket.created_at.isoformat(),
+    }
 
 
 @app.get("/health")
@@ -29,28 +54,40 @@ def health_check():
 
 
 @app.post("/tickets")
-def create_ticket(ticket: TicketCreate):
-    new_ticket = {
-        "id": len(tickets) + 1,
-        "customer_name": ticket.customer_name,
-        "question": ticket.question,
-        "order_no": ticket.order_no,
-        "priority": ticket.priority,
-        "status": "pending",
-        "created_at": datetime.now().isoformat(),
-    }
-    tickets.append(new_ticket)
-    return new_ticket
+def create_ticket(ticket: TicketCreate, db: Session = Depends(get_db)):
+    new_ticket = Ticket(
+        customer_name=ticket.customer_name,
+        question=ticket.question,
+        order_no=ticket.order_no,
+        priority=ticket.priority,
+    )
+    db.add(new_ticket)
+    db.commit()
+    db.refresh(new_ticket)
+    return ticket_to_dict(new_ticket)
 
 
 @app.get("/tickets")
-def list_tickets():
-    return {"total": len(tickets), "items": tickets}
-@app.patch("/tickets/{ticket_id}")
-def update_ticket_status(ticket_id: int, update: TicketStatusUpdate):
-    for ticket in tickets:
-        if ticket["id"] == ticket_id:
-            ticket["status"] = update.status
-            return ticket
+def list_tickets(db: Session = Depends(get_db)):
+    tickets = db.query(Ticket).order_by(Ticket.id.desc()).all()
+    return {
+        "total": len(tickets),
+        "items": [ticket_to_dict(ticket) for ticket in tickets],
+    }
 
-    raise HTTPException(status_code=404, detail="工单不存在")
+
+@app.patch("/tickets/{ticket_id}")
+def update_ticket_status(
+    ticket_id: int,
+    update: TicketStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    ticket = db.get(Ticket, ticket_id)
+
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="工单不存在")
+
+    ticket.status = update.status
+    db.commit()
+    db.refresh(ticket)
+    return ticket_to_dict(ticket)
