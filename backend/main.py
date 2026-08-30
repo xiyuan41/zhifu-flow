@@ -103,3 +103,24 @@ def search_knowledge_endpoint(query: str, top_k: int = 3):
         "total": len(results),
         "items": results,
     }
+
+@app.get("/knowledge/answer")
+def knowledge_answer(query: str):
+    results = search_knowledge(query=query, top_k=3)
+
+    if not results:
+        return {
+            "query": query,
+            "answer": "当前知识库没有覆盖该问题，建议转人工客服。",
+            "sources": [],
+            "grounded": False,
+        }
+
+    answer = "\n\n".join(item["content"] for item in results)
+
+    return {
+        "query": query,
+        "answer": answer,
+        "sources": [item["source"] for item in results],
+        "grounded": True,
+    }
