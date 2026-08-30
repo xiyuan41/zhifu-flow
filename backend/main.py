@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from database import Base, SessionLocal, engine
 from models import Ticket
+from knowledge_service import search_knowledge
 
 Base.metadata.create_all(bind=engine)
 
@@ -91,3 +92,14 @@ def update_ticket_status(
     db.commit()
     db.refresh(ticket)
     return ticket_to_dict(ticket)
+
+
+@app.get("/knowledge/search")
+def search_knowledge_endpoint(query: str, top_k: int = 3):
+    results = search_knowledge(query=query, top_k=top_k)
+
+    return {
+        "query": query,
+        "total": len(results),
+        "items": results,
+    }
