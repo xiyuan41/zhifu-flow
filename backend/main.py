@@ -124,3 +124,20 @@ def knowledge_answer(query: str):
         "sources": [item["source"] for item in results],
         "grounded": True,
     }
+
+def test_knowledge_answer_is_grounded():
+    response = client.get("/knowledge/answer", params={"query": "物流"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["grounded"] is True
+    assert "售后规则.md" in data["sources"]
+
+
+def test_knowledge_answer_refuses_unknown_query():
+    response = client.get("/knowledge/answer", params={"query": "股票投资"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["grounded"] is False
+    assert data["sources"] == []
