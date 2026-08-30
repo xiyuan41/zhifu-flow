@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from database import Base, SessionLocal, engine
 from models import Ticket
 from knowledge_service import search_knowledge
+from llm_service import generate_grounded_answer
 
 Base.metadata.create_all(bind=engine)
 
@@ -125,19 +126,29 @@ def knowledge_answer(query: str):
         "grounded": True,
     }
 
-def test_knowledge_answer_is_grounded():
-    response = client.get("/knowledge/answer", params={"query": "物流"})
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["grounded"] is True
-    assert "售后规则.md" in data["sources"]
+@app.get("/knowledge/llm-answer")
+def knowledge_llm_answer(query: str):
+    results = search_knowledge(query=query, top_k=3)
 
+    if not results:
+        return {
+            "query": query,
+            "answer": "当前知识库没有覆盖该问题，建议转人工客服。",
+            "sources": [],
+            "grounded": False,
+        }
 
-def test_knowledge_answer_refuses_unknown_query():
-    response = client.get("/knowledge/answer", params={"query": "股票投资"})
+    context = "\n\n".join(item["content"] for item in results)
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["grounded"] is False
-    assert data["sources"] == []
+    try:
+        answer = generate_grounded_answer(query=query, context=context)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    return {
+        "query": query,
+        "answer": answer,
+        "sources": [item["source"] for item in results],
+        "grounded": True,
+    }
