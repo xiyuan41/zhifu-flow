@@ -1,12 +1,23 @@
 from fastapi.testclient import TestClient
 
-from main import app, tickets
+from database import SessionLocal
+from main import app
+from models import Ticket
 
 client = TestClient(app)
 
 
+def clear_tickets():
+    db = SessionLocal()
+    try:
+        db.query(Ticket).delete()
+        db.commit()
+    finally:
+        db.close()
+
+
 def test_create_and_update_ticket():
-    tickets.clear()
+    clear_tickets()
 
     create_response = client.post(
         "/tickets",
@@ -32,10 +43,10 @@ def test_create_and_update_ticket():
 
 
 def test_update_missing_ticket_returns_404():
-    tickets.clear()
+    clear_tickets()
 
     response = client.patch(
-        "/tickets/999",
+        "/tickets/999999",
         json={"status": "processing"},
     )
 
