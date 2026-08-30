@@ -3,3 +3,4 @@
 *.py[cod]
 .pytest_cache/
 .env
+*.db
