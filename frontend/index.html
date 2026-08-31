@@ -108,6 +108,32 @@ select {
   background: #eff6ff;
   line-height: 1.7;
 }
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-processing {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-resolved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ticket-actions button {
+  margin-right: 8px;
+}
   </style>
 </head>
 <body>
@@ -307,33 +333,51 @@ async function loadTickets() {
       const item = document.createElement("div");
       item.className = "ticket-item";
 
-      const statusMap = {
+ const statusMap = {
   pending: "待处理",
   processing: "处理中",
   resolved: "已解决"
 };
 
+const statusClassMap = {
+  pending: "status-pending",
+  processing: "status-processing",
+  resolved: "status-resolved"
+};
+
 const info = document.createElement("p");
-info.textContent =
-  `工单 #${ticket.id}｜客户：${ticket.customer_name}｜` +
-  `优先级：${ticket.priority}｜状态：${statusMap[ticket.status]}｜` +
-  `问题：${ticket.question}`;
+info.append(`工单 #${ticket.id}｜客户：${ticket.customer_name}｜优先级：${ticket.priority}｜状态：`);
 
-const processingButton = document.createElement("button");
-processingButton.textContent = "标记处理中";
-processingButton.addEventListener("click", () => {
-  updateTicketStatus(ticket.id, "processing");
-});
+const statusBadge = document.createElement("span");
+statusBadge.className = `status-badge ${statusClassMap[ticket.status]}`;
+statusBadge.textContent = statusMap[ticket.status];
 
-const resolvedButton = document.createElement("button");
-resolvedButton.textContent = "标记已解决";
-resolvedButton.addEventListener("click", () => {
-  updateTicketStatus(ticket.id, "resolved");
-});
+info.appendChild(statusBadge);
+info.append(`｜问题：${ticket.question}`);
+
+const actions = document.createElement("div");
+actions.className = "ticket-actions";
+
+if (ticket.status === "pending") {
+  const processingButton = document.createElement("button");
+  processingButton.textContent = "标记处理中";
+  processingButton.addEventListener("click", () => {
+    updateTicketStatus(ticket.id, "processing");
+  });
+  actions.appendChild(processingButton);
+}
+
+if (ticket.status !== "resolved") {
+  const resolvedButton = document.createElement("button");
+  resolvedButton.textContent = "标记已解决";
+  resolvedButton.addEventListener("click", () => {
+    updateTicketStatus(ticket.id, "resolved");
+  });
+  actions.appendChild(resolvedButton);
+}
 
 item.appendChild(info);
-item.appendChild(processingButton);
-item.appendChild(resolvedButton);
+item.appendChild(actions);
 ticketList.appendChild(item);
     });
   } catch (error) {
