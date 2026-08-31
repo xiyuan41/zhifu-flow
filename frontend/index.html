@@ -262,6 +262,29 @@ select {
     createTicketButton.textContent = "转人工并创建工单";
   }
 });
+async function updateTicketStatus(ticketId, status) {
+  try {
+    const response = await fetch(`/tickets/${ticketId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        status: status
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || "更新状态失败");
+    }
+
+    await loadTickets();
+  } catch (error) {
+    alert(`状态更新失败：${error.message}`);
+  }
+}
 async function loadTickets() {
   loadTicketsButton.disabled = true;
   loadTicketsButton.textContent = "正在加载...";
@@ -284,12 +307,34 @@ async function loadTickets() {
       const item = document.createElement("div");
       item.className = "ticket-item";
 
-      item.textContent =
-        `工单 #${ticket.id}｜客户：${ticket.customer_name}｜` +
-        `优先级：${ticket.priority}｜状态：${ticket.status}｜` +
-        `问题：${ticket.question}`;
+      const statusMap = {
+  pending: "待处理",
+  processing: "处理中",
+  resolved: "已解决"
+};
 
-      ticketList.appendChild(item);
+const info = document.createElement("p");
+info.textContent =
+  `工单 #${ticket.id}｜客户：${ticket.customer_name}｜` +
+  `优先级：${ticket.priority}｜状态：${statusMap[ticket.status]}｜` +
+  `问题：${ticket.question}`;
+
+const processingButton = document.createElement("button");
+processingButton.textContent = "标记处理中";
+processingButton.addEventListener("click", () => {
+  updateTicketStatus(ticket.id, "processing");
+});
+
+const resolvedButton = document.createElement("button");
+resolvedButton.textContent = "标记已解决";
+resolvedButton.addEventListener("click", () => {
+  updateTicketStatus(ticket.id, "resolved");
+});
+
+item.appendChild(info);
+item.appendChild(processingButton);
+item.appendChild(resolvedButton);
+ticketList.appendChild(item);
     });
   } catch (error) {
     ticketList.textContent = `加载失败：${error.message}`;
