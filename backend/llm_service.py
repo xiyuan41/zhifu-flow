@@ -1,9 +1,11 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env", override=True)
 
 
 def get_llm_client() -> OpenAI:
