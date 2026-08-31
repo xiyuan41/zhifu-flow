@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>智服流｜智能客服工作台</title>
-  <style>
+   <style>
     * {
       box-sizing: border-box;
     }
@@ -100,6 +100,14 @@ select {
     .hidden {
       display: none;
     }
+     .ticket-item {
+  margin-top: 12px;
+  padding: 14px;
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  background: #eff6ff;
+  line-height: 1.7;
+}
   </style>
 </head>
 <body>
@@ -142,6 +150,13 @@ select {
 <button id="createTicketButton">转人工并创建工单</button>
 <p id="ticketMessage"></p>
     </section>
+<section class="card">
+  <h2>工单管理</h2>
+  <p>查看已创建的人工处理工单。</p>
+
+  <button id="loadTicketsButton">刷新工单列表</button>
+  <div id="ticketList"></div>
+</section>
   </main>
 
   <script>
@@ -156,6 +171,8 @@ select {
     const priorityInput = document.getElementById("priority");
     const createTicketButton = document.getElementById("createTicketButton");
     const ticketMessage = document.getElementById("ticketMessage");
+    const loadTicketsButton = document.getElementById("loadTicketsButton");
+    const ticketList = document.getElementById("ticketList");
 
     askButton.addEventListener("click", async () => {
       const question = questionInput.value.trim();
@@ -245,6 +262,44 @@ select {
     createTicketButton.textContent = "转人工并创建工单";
   }
 });
+async function loadTickets() {
+  loadTicketsButton.disabled = true;
+  loadTicketsButton.textContent = "正在加载...";
+  ticketList.textContent = "";
+
+  try {
+    const response = await fetch("/tickets");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || "获取工单失败");
+    }
+
+    if (data.items.length === 0) {
+      ticketList.textContent = "当前没有工单";
+      return;
+    }
+
+    data.items.forEach((ticket) => {
+      const item = document.createElement("div");
+      item.className = "ticket-item";
+
+      item.textContent =
+        `工单 #${ticket.id}｜客户：${ticket.customer_name}｜` +
+        `优先级：${ticket.priority}｜状态：${ticket.status}｜` +
+        `问题：${ticket.question}`;
+
+      ticketList.appendChild(item);
+    });
+  } catch (error) {
+    ticketList.textContent = `加载失败：${error.message}`;
+  } finally {
+    loadTicketsButton.disabled = false;
+    loadTicketsButton.textContent = "刷新工单列表";
+  }
+}
+
+loadTicketsButton.addEventListener("click", loadTickets);
   </script>
 </body>
 </html>
