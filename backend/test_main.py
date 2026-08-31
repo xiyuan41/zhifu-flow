@@ -1,3 +1,6 @@
+import os
+
+os.environ["DATABASE_URL"] = "sqlite:///./test_zhifu_flow.db"
 from fastapi.testclient import TestClient
 
 from database import SessionLocal
