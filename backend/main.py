@@ -1,3 +1,5 @@
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 from datetime import datetime
 from typing import Literal
 
@@ -145,6 +147,8 @@ def knowledge_llm_answer(query: str):
         answer = generate_grounded_answer(query=query, context=context)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"模型服务调用失败：{exc}")
 
     return {
         "query": query,
@@ -152,3 +156,10 @@ def knowledge_llm_answer(query: str):
         "sources": [item["source"] for item in results],
         "grounded": True,
     }
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+app.mount(
+    "/",
+    StaticFiles(directory=FRONTEND_DIR, html=True),
+    name="frontend",
+)

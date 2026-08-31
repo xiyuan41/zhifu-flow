@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智服流｜智能客服工作台</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", sans-serif;
+      background: #f4f7fb;
+      color: #1f2937;
+    }
+
+    .container {
+      width: min(900px, 92%);
+      margin: 50px auto;
+    }
+
+    .header {
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      color: #1d4ed8;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(31, 41, 55, 0.08);
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+   textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 16px;
+  resize: vertical;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+    button {
+      margin-top: 14px;
+      padding: 11px 20px;
+      border: 0;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    #status {
+      color: #64748b;
+    }
+
+    #answer {
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+
+    .source {
+      display: inline-block;
+      padding: 6px 10px;
+      margin: 5px 5px 0 0;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>智服流 · 智能客服工作台</h1>
+      <p>基于企业知识库的客服问答与工单协同系统</p>
+    </header>
+
+    <section class="card">
+      <label for="question">请输入客户问题</label>
+      <textarea id="question" placeholder="例如：物流超过 48 小时没有更新怎么办？"></textarea>
+      <button id="askButton">智能回答</button>
+    </section>
+
+    <section id="resultCard" class="card hidden">
+      <h2>回答结果</h2>
+      <p id="status"></p>
+      <div id="answer"></div>
+
+      <h3>回答依据</h3>
+      <div id="sources"></div>
+ <hr />
+
+<h3>需要人工处理？</h3>
+
+<label for="customerName">客户姓名</label>
+<input id="customerName" type="text" placeholder="请输入客户姓名" />
+
+<label for="orderNo">订单号（可选）</label>
+<input id="orderNo" type="text" placeholder="例如：ZF20260831001" />
+
+<label for="priority">工单优先级</label>
+<select id="priority">
+  <option value="low">低</option>
+  <option value="medium" selected>中</option>
+  <option value="high">高</option>
+</select>
+
+<button id="createTicketButton">转人工并创建工单</button>
+<p id="ticketMessage"></p>
+    </section>
+  </main>
+
+  <script>
+    const questionInput = document.getElementById("question");
+    const askButton = document.getElementById("askButton");
+    const resultCard = document.getElementById("resultCard");
+    const status = document.getElementById("status");
+    const answer = document.getElementById("answer");
+    const sources = document.getElementById("sources");
+    const customerNameInput = document.getElementById("customerName");
+    const orderNoInput = document.getElementById("orderNo");
+    const priorityInput = document.getElementById("priority");
+    const createTicketButton = document.getElementById("createTicketButton");
+    const ticketMessage = document.getElementById("ticketMessage");
+
+    askButton.addEventListener("click", async () => {
+      const question = questionInput.value.trim();
+
+      if (!question) {
+        alert("请先输入一个问题");
+        return;
+      }
+
+      askButton.disabled = true;
+      askButton.textContent = "正在查询...";
+      resultCard.classList.remove("hidden");
+      status.textContent = "正在检索知识库并生成回答...";
+      answer.textContent = "";
+      sources.innerHTML = "";
+
+      try {
+        const response = await fetch(
+          `/knowledge/llm-answer?query=${encodeURIComponent(question)}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "请求失败");
+        }
+
+        answer.textContent = data.answer;
+        status.textContent = data.grounded
+          ? "回答已依据知识库生成"
+          : "知识库未覆盖该问题，建议转人工客服";
+
+        data.sources.forEach((source) => {
+          const tag = document.createElement("span");
+          tag.className = "source";
+          tag.textContent = source;
+          sources.appendChild(tag);
+        });
+      } catch (error) {
+        status.textContent = "调用失败";
+        answer.textContent = error.message;
+      } finally {
+        askButton.disabled = false;
+        askButton.textContent = "智能回答";
+      }
+    });
+    createTicketButton.addEventListener("click", async () => {
+  const customerName = customerNameInput.value.trim();
+  const question = questionInput.value.trim();
+
+  if (!customerName) {
+    ticketMessage.textContent = "请填写客户姓名";
+    return;
+  }
+
+  createTicketButton.disabled = true;
+  createTicketButton.textContent = "正在创建...";
+  ticketMessage.textContent = "";
+
+  try {
+    const response = await fetch("/tickets", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        customer_name: customerName,
+        question: question,
+        order_no: orderNoInput.value.trim() || null,
+        priority: priorityInput.value
+      })
+    });
+
+    const ticket = await response.json();
+
+    if (!response.ok) {
+      throw new Error(ticket.detail || "工单创建失败");
+    }
+
+    ticketMessage.textContent = `工单创建成功，编号：#${ticket.id}`;
+    customerNameInput.value = "";
+    orderNoInput.value = "";
+  } catch (error) {
+    ticketMessage.textContent = `创建失败：${error.message}`;
+  } finally {
+    createTicketButton.disabled = false;
+    createTicketButton.textContent = "转人工并创建工单";
+  }
+});
+  </script>
+</body>
+</html>
